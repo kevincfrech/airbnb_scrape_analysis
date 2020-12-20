@@ -231,7 +231,6 @@ def Airbnb_webscrape(city_name, state, max_pages = 14):
 
     scrape_city(city_name, state)
 
-#Airbnb_webscrape('Boston')
 
 if __name__ == "__main__":
     Airbnb_webscrape(sys.argv[1], sys.argv[2], int(sys.argv[3]))
