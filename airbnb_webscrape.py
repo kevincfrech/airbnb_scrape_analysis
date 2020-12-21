@@ -93,8 +93,7 @@ def Airbnb_webscrape(city_name, state, max_pages = 14):
 
         rooms = []
         n = 0
-        #for i in range(int(int(len(titles)) / 2)):
-        for i in range(20):
+        for i in range(len(titles)):
             rooms.append(rooms_amenities[n])
             n += 2
 
@@ -122,8 +121,8 @@ def Airbnb_webscrape(city_name, state, max_pages = 14):
         # split amenities
         amenities = []
         n = 1
-        #for i in range(int(int(len(titles)) / 2)):
-        for i in range(20):
+
+        for i in range(len(titles)):
             amenities.append(rooms_amenities[n])
             n += 2
 
