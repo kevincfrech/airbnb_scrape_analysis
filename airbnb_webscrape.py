@@ -1,10 +1,9 @@
 import sys
-import time
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup as bs
 
-def Airbnb_webscrape(city_name, state, max_pages = 14):
+def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
     '''Defines css class identifiers to be used in spider and webscraper'''
     airbnb_url = 'https://airbnb.com'
     next_page_class = '_za9j7e',
@@ -20,11 +19,11 @@ def Airbnb_webscrape(city_name, state, max_pages = 14):
 
 
 
-    def city_url(city_name, state, country='United-States'):
+    def city_url(city_name, state_name, country='United-States'):
         '''build url for city and check in and out dates'''
         base = 'https://www.airbnb.com/s/'
         post = '/homes?tab_id=home_tab&refinement_paths'
-        url = base + city_name + '--' + state + '--' + country + post
+        url = base + city_name + '--' + state_name + '--' + country + post
         return str(url)
 
     def get_page_links(url):
@@ -44,7 +43,6 @@ def Airbnb_webscrape(city_name, state, max_pages = 14):
                 link = soup.find(class_=next_page_class).get('href')
                 link = airbnb_url + link
                 page_links.append(link)
-                print(link)
             except:
                 print('page limit reached')
                 break
@@ -168,19 +166,19 @@ def Airbnb_webscrape(city_name, state, max_pages = 14):
             link = airbnb_url + link
             listing_links.append(link)
 
-        print(len(titles))
-        print(len(dwelling_types))
-        print(len(locations))
-        print(len(prices))
-        print(len(guests))
-        print(len(bedrooms))
-        print(len(beds))
-        print(len(bathrooms))
-        print(len(amenity_1))
-        print(len(amenity_2))
-        print(len(amenity_3))
-        print(len(amenity_4))
-        print(len(listing_links))
+        # print(len(titles))
+        # print(len(dwelling_types))
+        # print(len(locations))
+        # print(len(prices))
+        # print(len(guests))
+        # print(len(bedrooms))
+        # print(len(beds))
+        # print(len(bathrooms))
+        # print(len(amenity_1))
+        # print(len(amenity_2))
+        # print(len(amenity_3))
+        # print(len(amenity_4))
+        # print(len(listing_links))
 
         print(len(titles) == len(locations) == len(prices) == len(guests) == len(bedrooms) == len(bathrooms) == len(
             amenity_1) == len(amenity_2) == len(amenity_3) == len(amenity_4) )
@@ -204,32 +202,54 @@ def Airbnb_webscrape(city_name, state, max_pages = 14):
 
             listings.append(listing)
         ldf = pd.DataFrame(listings)
-        return (ldf)
+        return ldf
 
-    def scrape_city(city_name, state, csv_output = r'/home/kfrech/project/airbnb_webscrape/csv/'):
+    def scrape_city(city_name, state_name, write_csv = False, csv_output = r'/home/kfrech/project/airbnb_webscrape/csv/'):
+        '''returns a maximum of 300 results per run and outputs to csv'''
         try:
-            url = city_url(city_name, state)
+            url = city_url(city_name, state_name)
             page_links = get_page_links(url)
-            all_scraped_data = []
+            headers = []
             column_headers = ['title', 'type', 'location', 'price',
                               'guests', 'bedrooms', 'beds',
                               'bathrooms', 'amenity_1', 'amenity_2',
                               'amenity_3', 'amenity_4', 'link']
-            all_scraped_data.append(column_headers)
-            sdf = pd.DataFrame(all_scraped_data)
+            headers.append(column_headers)
+            city_df = pd.DataFrame(headers)
 
             for url in page_links:
-                ldf = scrape_listings_from_page(url)
-                sdf = sdf.append(ldf)
+                listing_df = scrape_listings_from_page(url)
+                city_df = city_df.append(listing_df)
+            if write_csv:
+                csv_name = f"{city_name}_{state_name}_airbnb.csv"
+                city_df.to_csv(csv_output + csv_name)
 
-            csv_name = city_name + '_airbnb.csv'
-            sdf.to_csv(csv_output + csv_name)
-            print(sdf)
         finally:
-            print('webscrape complete')
+            print('run complete')
+            return city_df
 
-    scrape_city(city_name, state)
-
+    def multi_run_scrape(city_name, state_name, number_of_runs, write_csv = True, csv_output = r'/home/kfrech/project/airbnb_webscrape/csv/'):
+        '''runs the city scraper for given number of runs and removes duplicates
+        writes to csv'''
+        headers = []
+        column_headers = ['title', 'type', 'location', 'price',
+                          'guests', 'bedrooms', 'beds',
+                          'bathrooms', 'amenity_1', 'amenity_2',
+                          'amenity_3', 'amenity_4', 'link']
+        headers.append(column_headers)
+        city_df = pd.DataFrame(headers)
+        for i in range(number_of_runs):
+            run_df = scrape_city(city_name, state_name)
+            city_df = city_df.append(run_df)
+        city_df = city_df.drop_duplicates()
+        print('duplicates:')
+        print(number_of_runs * 300  - len(city_df.index))
+        if write_csv:
+            csv_name = f"{city_name}_{state_name}_airbnb.csv"
+            city_df.to_csv(csv_output + csv_name)
+        print('webscrape complete')
+        return city_df
+    multi_run_scrape(city_name, state_name, number_of_runs)
 
 if __name__ == "__main__":
-    Airbnb_webscrape(sys.argv[1], sys.argv[2], int(sys.argv[3]))
+    Airbnb_webscrape(sys.argv[1], sys.argv[2])
