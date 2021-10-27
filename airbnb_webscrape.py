@@ -1,25 +1,27 @@
 import sys
 import pandas as pd
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup as bs
+import time
 
 def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    driver = webdriver.Chrome(options=chrome_options)
+
     '''Defines css class identifiers to be used in spider and webscraper'''
     airbnb_url = 'https://airbnb.com'
     next_page_class = '_za9j7e',
     #features to be scraped
-    title_class = '_bzh5lkq',
-    type_location_class = '_167qordg',
-    price_class = '_l2ulkt8',
-    rooms_class = '_kqh46o'
-    listing_links_class = '_gjfol0'
+    title_class = '_1whrsux9',
+    type_location_class = '_1xzimiid',
+    price_class = '_tyxjp1',
+    rooms_class = '_3c0zz1'
+    listing_links_class = '_mm360j'
 
-    forbidden_characters = [',', '.', '✪', '|', '/', '"', '*', '-', '+',
-                          '✤', '♥', '~', '☆', '🎓','🌟','🚑','⚡', '🌈'
-                          '★','☀','❤','✔', '🏳️', '★']
-
-    csv_output = r'/home/kfrech/project/airbnb_webscrape/csv/'
-
+    city_name = city_name.title()
+    state_name = state_name.upper()
 
 
     def city_url(city_name, state_name, country='United-States'):
@@ -27,6 +29,7 @@ def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
         build url for city and check in and out dates
         '''
         url = f'https://www.airbnb.com/s/{city_name}--{state_name}--{country}/homes?tab_id=home_tab&refinement_paths'
+        print(url)
         return str(url)
 
     def get_page_links(url):
@@ -38,16 +41,20 @@ def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
         page_links = []
         page_links.append(url)
         link = url
-
+        print('Finding page urls')
         # add pages 2-15 to list
         for i in range(max_pages):
             try:
             # make soup and extract next page link
-                page = requests.get(link)
-                soup = bs(page.content, 'html.parser')
+                driver.get(link)
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+                page = driver.page_source
+                soup = bs(page, 'html.parser')
                 link = soup.find(class_=next_page_class).get('href')
                 link = airbnb_url + link
                 page_links.append(link)
+                print(f'Page url {i + 1}')
             except:
                 print('page limit reached')
                 break
@@ -56,9 +63,15 @@ def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
 
     def scrape_listings_from_page(url):
         '''scrapes multi listing page, only extracts basic info'''
+        forbidden_characters = [',', '.', '✪', '|', '/', '"', '*', '-', '+',
+                                '✤', '♥', '~', '☆', '🎓', '🌟', '🚑', '⚡', '🌈'
+                                '★', '☀', '❤', '✔', '🏳️', '★', '💕', '🌄', '🏝']
         # make soup
-        page = requests.get(url)
-        soup = bs(page.content, 'html.parser')
+        driver.get(url)
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+        page = driver.page_source
+        soup = bs(page, 'html.parser')
 
         # scrape titles and remove special characters
         titles = []
@@ -85,7 +98,8 @@ def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
         for i in soup.find_all(class_=price_class):
             t = i.get_text()
             t = t.replace('From', '')
-            t = t.replace('Price:$', '')
+            t = t.replace('Price:', '')
+            t = t.replace('$', '')
             t = t.replace(' / night', '')
             prices.append(t)
 
@@ -151,9 +165,8 @@ def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
             listing_links.append(link)
 
 
-
-        print(len(titles) == len(locations) == len(prices) == len(guests) == len(bedrooms) == len(bathrooms) == len(
-            amenity_1) == len(amenity_2) == len(amenity_3) == len(amenity_4) )
+        if len(titles) == len(locations) == len(prices) == len(guests) == len(bedrooms) == len(bathrooms) == len(amenity_1) == len(amenity_2) == len(amenity_3) == len(amenity_4):
+            print('page valid and complete')
 
         # Build listing list objects
         listings = []
@@ -181,7 +194,7 @@ def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
                               'guests', 'bedrooms', 'beds',
                               'bathrooms', 'amenity_1', 'amenity_2',
                               'amenity_3', 'amenity_4', 'link']
-            headers.append(column_headers)
+            # headers.append(column_headers)
             city_df = pd.DataFrame(headers, columns=column_headers)
 
             for url in page_links:
@@ -189,7 +202,7 @@ def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
                 city_df = city_df.append(listing_df)
             if write_csv:
                 csv_name = f"{city_name}_{state_name}_airbnb.csv"
-                city_df.to_csv(csv_output + csv_name)
+                city_df.to_csv(csv_name)
 
         finally:
             print('run complete')
@@ -209,12 +222,12 @@ def Airbnb_webscrape(city_name, state_name, number_of_runs=3, max_pages = 14):
             run_df = scrape_city(city_name, state_name)
             city_df = city_df.append(run_df)
         city_df = city_df.drop_duplicates()
-        print('duplicates:')
-        print(number_of_runs * 300  - len(city_df.index) + 1)
+        # print('duplicates:')
+        # print(number_of_runs * 300 - len(city_df.index) + 1)
         if write_csv:
             csv_name = f"{city_name}_{state_name}_airbnb.csv"
-            city_df.to_csv(csv_output + csv_name)
-        print(csv_output + csv_name)
+            city_df.to_csv(csv_name)
+        print(f'Csv wrote to {csv_name}')
         print('webscrape complete')
         return city_df
     multi_run_scrape(city_name, state_name, number_of_runs)
