@@ -1,5 +1,5 @@
 # airbnb_scrape_analysis
-Webscraping and analyzing airbnb data
+Webscraping and analyzing airbnb data for learning and research purposes. Returns a csv of up to 300 listings per run.
 
 # Getting Started
 Requires selenium Chrome webdriver
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 From the command line, module accepts city name and state as arguments. Multi-word cities should be separated by a hyphen. Country Name defaults to 'United-States', but can be edited in script. 
 
 ```
-python airbnb_webscrape.py San-Diego ca
+python airbnb_webscrape.py seattle wa
 ```
 
 # Attributes returned in CSV for each listing
